@@ -41,3 +41,5 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: docker build -t optiondesk:ci .
+      - name: Smoke-test the image
+        run: docker run --rm optiondesk:ci optiondesk demo --days 1
