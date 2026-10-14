@@ -7,7 +7,7 @@ tokens/
 secrets/
 
 # Local data
-data/
+/data/
 *.db
 *.sqlite3
 *.csv
