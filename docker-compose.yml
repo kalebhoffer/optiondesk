@@ -1,0 +1,14 @@
+services:
+  optiondesk:
+    build: .
+    env_file: .env          # secrets live here, never in the image or the config
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data                  # journal database
+      - optiondesk-tokens:/home/app/.optiondesk   # Schwab OAuth tokens
+    ports:
+      - "127.0.0.1:8000:8000"   # loopback only; put a TLS proxy in front to expose it
+    restart: unless-stopped
+
+volumes:
+  optiondesk-tokens:

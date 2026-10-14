@@ -1,0 +1,71 @@
+# OptionDesk configuration.
+#
+# Secrets do NOT go in this file. Broker credentials and the dashboard API key
+# are read from environment variables (copy .env.example to .env). The loader
+# refuses to start if it finds a setting that looks like a credential here.
+
+mode = "paper"          # "paper" simulates fills; "live" sends real orders (see README)
+data = "synthetic"      # "synthetic" needs no account; "schwab" uses live Schwab quotes
+symbols = ["SPY", "QQQ"]
+bar_seconds = 60        # bar length the strategies see
+poll_seconds = 5        # how often to poll Schwab quotes when data = "schwab"
+journal_path = "data/optiondesk.db"
+plugins = []            # your own strategy modules, e.g. ["my_strategies"] for ./my_strategies.py
+
+[account]
+starting_capital = 25000    # paper-mode equity; risk limits are % of equity
+
+[risk]
+max_risk_per_trade_pct = 2.0    # premium spent per trade (the most a long option can lose)
+max_open_positions = 3
+max_total_exposure_pct = 20.0   # all open premium combined
+daily_loss_limit_pct = 5.0      # stop opening new trades after this daily drawdown
+cooldown_minutes = 15           # wait after exiting a symbol before re-entering it
+no_entries_first_minutes = 5
+no_entries_last_minutes = 30
+
+[sizing]
+method = "fixed_fraction"   # or "kelly" (fractional Kelly once a strategy has history)
+kelly_fraction = 0.25
+kelly_min_trades = 20
+max_contracts = 10
+
+[contracts]
+target_delta = 0.40
+min_dte = 1
+max_dte = 14
+max_spread_pct = 0.10       # skip contracts whose bid/ask spread exceeds 10% of mid
+min_open_interest = 100
+
+[exits]
+stop_loss_pct = 0.30
+take_profit_pct = 0.60
+trail_activate_pct = 0.25
+trail_pct = 0.15
+max_hold_minutes = 180
+flatten_minutes_before_close = 15
+
+[execution]
+commission_per_contract = 0.65
+entry_limit_offset = 0.25   # entry limit = mid + 25% of the half-spread
+fill_timeout_seconds = 30
+
+[[strategies]]
+name = "ema_cross"
+params = { fast = 9, slow = 21 }
+
+[[strategies]]
+name = "opening_range"
+params = { range_minutes = 15 }
+
+[dashboard]
+enabled = true
+host = "127.0.0.1"
+port = 8000
+
+[synthetic]
+seed = 7
+start_price = 500.0
+annual_vol = 0.18
+implied_vol = 0.20
+speed = 0.05    # seconds between bars in `optiondesk run` with synthetic data

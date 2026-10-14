@@ -1,0 +1,26 @@
+# Secrets: never commit these
+.env
+.env.*
+!.env.example
+*_tokens.json
+tokens/
+secrets/
+
+# Local data
+data/
+*.db
+*.sqlite3
+*.csv
+!examples/*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage

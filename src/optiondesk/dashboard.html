@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OptionDesk</title>
+<style>
+:root { --bg:#f7f7f5; --panel:#fff; --ink:#1d1d1b; --muted:#6b6b66; --line:#e3e3de; --up:#1a7f4b; --down:#b3261e; }
+@media (prefers-color-scheme: dark) { :root { --bg:#141413; --panel:#1d1d1b; --ink:#ececea; --muted:#9a9a94; --line:#2e2e2b; --up:#4cc38a; --down:#f2726a; } }
+* { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 system-ui,sans-serif; }
+main { max-width:1100px; margin:0 auto; padding:24px 16px; } h1 { font-size:20px; margin:0 0 4px } h2 { font-size:15px; margin:28px 0 8px }
+.sub { color:var(--muted); margin-bottom:18px } .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px }
+.stat { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px } .stat b { display:block; font-size:18px; font-variant-numeric:tabular-nums }
+.stat span { color:var(--muted); font-size:12px } .wrap { overflow-x:auto } table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:8px }
+th,td { padding:7px 10px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; font-variant-numeric:tabular-nums } th { color:var(--muted); font-weight:500; font-size:12px }
+.up { color:var(--up) } .down { color:var(--down) } .empty { color:var(--muted); padding:12px } button { font:inherit; padding:6px 12px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer }
+</style></head><body><main>
+<h1>OptionDesk</h1><div class="sub" id="sub">Loading…</div>
+<div class="stats" id="stats"></div>
+<p><button id="halt">Halt new entries</button> <button id="resume">Resume</button></p>
+<h2>Open positions</h2><div class="wrap" id="positions"></div>
+<h2>Recent trades</h2><div class="wrap" id="trades"></div>
+<h2>Activity</h2><div class="wrap" id="events"></div>
+</main><script>
+const key = new URLSearchParams(location.search).get("key");
+const q = key ? "?key=" + encodeURIComponent(key) : "";
+const money = v => (v < 0 ? "-$" : "$") + Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const cls = v => v > 0 ? "up" : v < 0 ? "down" : "";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function table(rows, cols) {
+  if (!rows.length) return '<div class="empty">None yet.</div>';
+  return "<table><tr>" + cols.map(c => "<th>" + c[0] + "</th>").join("") + "</tr>" +
+    rows.map(r => "<tr>" + cols.map(c => c[1](r)).join("") + "</tr>").join("") + "</table>";
+}
+async function get(path) { const r = await fetch(path + q); if (!r.ok) throw new Error(r.status); return r.json(); }
+async function refresh() {
+  try {
+    const [s, pos, trades, events] = await Promise.all([get("/api/status"), get("/api/positions"), get("/api/trades"), get("/api/events")]);
+    document.getElementById("sub").textContent = s.mode.toUpperCase() + " · " + s.data + " data · " + s.strategies.join(", ") +
+      (s.halted ? " · HALTED" : "") + (s.last_bar ? " · last bar " + new Date(s.last_bar).toLocaleString() : "");
+    document.getElementById("stats").innerHTML = [["Equity", money(s.equity), ""], ["Today", money(s.day_pnl), cls(s.day_pnl)],
+      ["Realized", money(s.realized_pnl), cls(s.realized_pnl)], ["Exposure", money(s.exposure), ""], ["Open", s.open_positions, ""]]
+      .map(([l, v, c]) => '<div class="stat"><span>' + l + '</span><b class="' + c + '">' + v + "</b></div>").join("");
+    document.getElementById("positions").innerHTML = table(pos, [["Contract", r => "<td>" + esc(r.contract) + "</td>"],
+      ["Strategy", r => "<td>" + esc(r.strategy) + "</td>"], ["Qty", r => "<td>" + r.quantity + "</td>"],
+      ["Entry", r => "<td>" + r.entry_price.toFixed(2) + "</td>"], ["Mark", r => "<td>" + r.mark.toFixed(2) + "</td>"],
+      ["P&L", r => '<td class="' + cls(r.unrealized_pnl) + '">' + money(r.unrealized_pnl) + " (" + r.return_pct + "%)</td>"]]);
+    document.getElementById("trades").innerHTML = table(trades, [["Closed", r => "<td>" + new Date(r.closed).toLocaleString() + "</td>"],
+      ["Contract", r => "<td>" + esc(r.contract) + "</td>"], ["Strategy", r => "<td>" + esc(r.strategy) + "</td>"],
+      ["Qty", r => "<td>" + r.quantity + "</td>"], ["Entry → Exit", r => "<td>" + r.entry_price.toFixed(2) + " → " + r.exit_price.toFixed(2) + "</td>"],
+      ["P&L", r => '<td class="' + cls(r.pnl) + '">' + money(r.pnl) + "</td>"], ["Reason", r => "<td>" + esc(r.reason) + "</td>"]]);
+    document.getElementById("events").innerHTML = table(events.slice(0, 30), [["Time", r => "<td>" + new Date(r.time).toLocaleTimeString() + "</td>"],
+      ["Event", r => "<td>" + esc(r.topic) + "</td>"], ["Detail", r => "<td>" + esc(r.data.reason || r.data.contract || r.data.symbol || "") + "</td>"]]);
+  } catch (e) { document.getElementById("sub").textContent = "Cannot reach the engine (" + e.message + ")"; }
+}
+document.getElementById("halt").onclick = () => fetch("/api/halt" + q, {method: "POST", headers: {"X-OptionDesk": "1"}}).then(refresh);
+document.getElementById("resume").onclick = () => fetch("/api/resume" + q, {method: "POST", headers: {"X-OptionDesk": "1"}}).then(refresh);
+refresh(); setInterval(refresh, 5000);
+</script></body></html>
