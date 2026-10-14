@@ -283,6 +283,10 @@ uv run mypy            # strict
 Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). To report a
 security problem, see [SECURITY.md](SECURITY.md).
 
+## Author
+
+Built by [Kaleb Hoffer](https://github.com/kalebhoffer) ([LinkedIn](https://www.linkedin.com/in/kalebhoffer)).
+
 ## License
 
 [MIT](LICENSE). Not affiliated with Charles Schwab.
